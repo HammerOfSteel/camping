@@ -151,13 +151,13 @@ export default function CanoeingPage() {
                 <button
                   key={idx}
                   onClick={() => goToImage(idx)}
-                  className={`relative h-20 rounded overflow-hidden transition-all ${
+                  className={`relative h-20 rounded overflow-hidden transition-all border-2 ${
                     idx === currentImageIndex
-                      ? 'ring-2 ring-offset-2'
-                      : 'opacity-60 hover:opacity-100'
+                      ? 'border-opacity-100'
+                      : 'opacity-60 hover:opacity-100 border-transparent'
                   }`}
                   style={{
-                    ringColor: idx === currentImageIndex ? theme.colors.accent.sunriseOrange : 'transparent'
+                    borderColor: idx === currentImageIndex ? theme.colors.accent.sunriseOrange : 'transparent'
                   }}
                 >
                   <Image
