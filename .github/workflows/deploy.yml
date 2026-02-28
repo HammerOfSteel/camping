@@ -185,9 +185,35 @@ ENVEOF
           # Create webroot directory for certbot verification
           sudo mkdir -p /var/www/certbot
           
-          # Request/renew SSL certificate with proper setup
-          if [ ! -d "$CERT_PATH" ]; then
-            echo "🔐 Requesting SSL certificate from Let's Encrypt..."
+          # Check certificate status and request if needed
+          CERT_FILE="$CERT_PATH/fullchain.pem"
+          SHOULD_RENEW=false
+          
+          if [ ! -f "$CERT_FILE" ]; then
+            echo "🔐 No SSL certificate found - requesting from Let's Encrypt..."
+            SHOULD_RENEW=true
+          else
+            # Check expiration date
+            EXPIRY_DATE=$(sudo openssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
+            EXPIRY_EPOCH=$(date -d "$EXPIRY_DATE" +%s)
+            CURRENT_EPOCH=$(date +%s)
+            DAYS_LEFT=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+            
+            echo "✅ SSL certificate exists"
+            echo "   Expiry: $EXPIRY_DATE"
+            echo "   Days remaining: $DAYS_LEFT"
+            
+            if [ "$DAYS_LEFT" -lt 30 ]; then
+              echo "⚠️  Certificate expiring soon - will renew"
+              SHOULD_RENEW=true
+            else
+              echo "   ✓ Certificate is valid, no renewal needed"
+            fi
+          fi
+          
+          # Request/renew SSL certificate only if needed
+          if [ "$SHOULD_RENEW" = true ]; then
+            echo "🔐 Requesting/renewing SSL certificate from Let's Encrypt..."
             sudo certbot certonly \
               --non-interactive \
               --agree-tos \
@@ -195,49 +221,58 @@ ENVEOF
               --webroot \
               -w /var/www/certbot \
               -d "$DOMAIN" \
-              2>&1 || echo "⚠️  Certbot setup - will retry during nginx reload"
-          else
-            echo "✅ SSL certificate already exists at $CERT_PATH"
-            echo "   Last modified: $(stat -c %y "$CERT_PATH" | cut -d' ' -f1-2)"
+              2>&1 || { echo "❌ Certbot failed - cert may not be available"; exit 1; }
+            echo "✅ Certificate issued/renewed successfully"
           fi
           
           # Create nginx configuration
           echo "📝 Creating nginx configuration..."
-          sudo tee "$NGINX_CONFIG" > /dev/null << 'NGINXEOF'
-          # HTTP - Let's Encrypt verification and redirect
-          server {
-              listen 80;
-              server_name littlelakehill.dancingsalamanders.com;
           
-              # Let's Encrypt webroot
-              location /.well-known/acme-challenge/ {
-                  root /var/www/certbot;
-              }
-          
-              # Redirect all other HTTP traffic to HTTPS
-              location / {
-                  return 301 https://$host$request_uri;
-              }
-          }
-          
-          # HTTPS - Reverse proxy to application
-          server {
-              listen 443 ssl http2;
-              server_name littlelakehill.dancingsalamanders.com;
-          
+          # Use temporary config with or without SSL depending on cert availability
+          if [ -f "$CERT_FILE" ]; then
+            echo "   Using SSL configuration (cert available)"
+            SSL_SECTION="
               # SSL configuration
-              ssl_certificate /etc/letsencrypt/live/littlelakehill.dancingsalamanders.com/fullchain.pem;
-              ssl_certificate_key /etc/letsencrypt/live/littlelakehill.dancingsalamanders.com/privkey.pem;
+              ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
               ssl_session_timeout 1d;
               ssl_session_cache shared:SSL:50m;
               ssl_protocols TLSv1.2 TLSv1.3;
               ssl_ciphers HIGH:!aNULL:!MD5;
               ssl_prefer_server_ciphers on;
+              add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;"
+            LISTEN="listen 443 ssl http2;"
+          else
+            echo "   ⚠️  Cert not available yet - HTTP only (cert needed for HTTPS)"
+            SSL_SECTION="# SSL configuration (certificates not yet available)"
+            LISTEN="listen 80;"
+          fi
           
-              # HSTS header
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+          sudo tee "$NGINX_CONFIG" > /dev/null << 'NGINXEOF'
+          # HTTP - Let's Encrypt verification and redirect to HTTPS
+          server {
+              listen 80;
+              server_name littlelakehill.dancingsalamanders.com;
           
-              # Reverse proxy to Docker container
+              # Let's Encrypt webroot for certificate verification
+              location /.well-known/acme-challenge/ {
+                  root /var/www/certbot;
+              }
+          
+              # Redirect to HTTPS if cert is available
+              location / {
+                  return 301 https://$host$request_uri;
+              }
+          }
+          
+          # HTTPS/HTTP - Reverse proxy to application
+          server {
+              SERVER_LISTEN
+              server_name littlelakehill.dancingsalamanders.com;
+          
+              SERVER_SSL_CONFIG
+          
+              # Reverse proxy to Docker container on port 3002
               location / {
                   proxy_pass http://127.0.0.1:3002;
                   proxy_set_header Host $host;
@@ -258,6 +293,10 @@ ENVEOF
               }
           }
           NGINXEOF
+          
+          # Now apply variable substitution to the config
+          sudo sed -i "s|SERVER_LISTEN|$LISTEN|g" "$NGINX_CONFIG"
+          sudo sed -i "s|SERVER_SSL_CONFIG|$SSL_SECTION|g" "$NGINX_CONFIG"
           
           # Enable nginx site
           echo "🔗 Enabling nginx site..."
@@ -303,14 +342,38 @@ ENVEOF
           echo "🔍 Verifying deployment..."
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
           echo "📋 Docker containers:"
-          sudo docker-compose -f /home/ubuntu/littlelakehill/docker-compose.yml ps
+          sudo docker-compose -f /home/ubuntu/littlelakehill/docker-compose.yml ps 2>/dev/null || echo "   (containers not yet running)"
           
           echo ""
-          echo "🌐 Nginx configuration:"
-          sudo nginx -T 2>/dev/null | grep -A5 "littlelakehill" || echo "Config loaded"
+          echo "🌐 Nginx status:"
+          if sudo systemctl is-active --quiet nginx; then
+            echo "   ✓ Nginx is running"
+          else
+            echo "   ✗ Nginx is not running"
+          fi
           
           echo ""
-          echo "✅ Deployment verification complete!"
+          echo "🔐 SSL Certificate status:"
+          CERT_FILE="/etc/letsencrypt/live/littlelakehill.dancingsalamanders.com/fullchain.pem"
+          if [ -f "$CERT_FILE" ]; then
+            EXPIRY=$(sudo openssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
+            EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s 2>/dev/null || date -jf "%b %d %T %Z %Y" "$EXPIRY" +%s)
+            CURRENT_EPOCH=$(date +%s)
+            DAYS_LEFT=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+            echo "   ✓ Certificate exists"
+            echo "   Expiry: $EXPIRY"
+            echo "   Days remaining: $DAYS_LEFT"
+          else
+            echo "   ⚠️  Certificate not yet available (may need manual certbot or DNS resolution)"
+          fi
+          
+          echo ""
+          echo "📍 Site accessibility:"
+          echo "   HTTP: http://129.151.193.219:3002"
+          echo "   HTTPS: https://littlelakehill.dancingsalamanders.com (requires valid cert)"
+          
+          echo ""
+          echo "✅ Verification complete!"
           EOF
 
       - name: Deployment Summary
