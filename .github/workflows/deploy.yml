@@ -67,7 +67,7 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/scripts/setup-ssl.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup-ssl.sh
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} bash ~/setup-ssl.sh
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "bash ~/setup-ssl.sh"
 
       - name: Verify Deployment
         env:
