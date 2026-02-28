@@ -1,0 +1,249 @@
+name: Deploy to Oracle Host
+
+on:
+  workflow_dispatch:
+    inputs:
+      theme:
+        description: 'Theme Selection'
+        required: true
+        default: 'nordic-standard'
+        type: choice
+        options:
+          - nordic-standard
+          - nordic-minimal
+          - adventure-bold
+      enable_email:
+        description: 'Enable Email Notifications'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DEPLOY_HOST: 129.151.193.219
+  DEPLOY_USER: ubuntu
+  DEPLOY_PATH: /home/ubuntu/littlelakehill
+  SERVICE_NAME: lits_camping
+  HOST_PORT: 3002
+  CONTAINER_PORT: 3000
+  DOMAIN: littlelakehill.dancingsalamanders.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Oracle Host
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          THEME: ${{ github.event.inputs.theme }}
+          ENABLE_EMAIL: ${{ github.event.inputs.enable_email }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          # Build deployment script
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🚀 Deploying Lits Camping to oracle host..."
+          
+          # Create or update deployment directory
+          if [ ! -d "$DEPLOY_PATH" ]; then
+            echo "📁 Creating deployment directory..."
+            mkdir -p "$DEPLOY_PATH"
+          else
+            echo "📁 Deployment directory exists, pulling latest code..."
+          fi
+          
+          cd "$DEPLOY_PATH"
+          
+          # Initialize git if needed
+          if [ ! -d ".git" ]; then
+            git init
+            git remote add origin https://github.com/${{ github.repository }}.git
+          fi
+          
+          # Fetch and checkout latest code
+          git fetch origin ${{ github.ref_name }}
+          git checkout -f origin/${{ github.ref_name }}
+          
+          # Create .env file with configuration
+          cat > .env << ENVEOF
+          NODE_ENV=production
+          NEXT_PUBLIC_THEME=$THEME
+          NEXT_PUBLIC_SITE_NAME=Lits Camping
+          NEXT_PUBLIC_SITE_URL=https://$DOMAIN
+          
+          # Database Configuration
+          DB_USER=litscamping
+          DB_PASSWORD=$DB_PASSWORD
+          DB_NAME=lits_camping
+          DATABASE_URL=postgresql://litscamping:$DB_PASSWORD@db:5432/lits_camping
+          
+          # Authentication
+          NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+          NEXTAUTH_URL=https://$DOMAIN
+          ADMIN_PASSWORD=admin123
+          
+          # Email Notifications
+          ENABLE_EMAIL_NOTIFICATIONS=$ENABLE_EMAIL
+          EMAIL_SMTP_HOST=smtp.gmail.com
+          EMAIL_SMTP_PORT=587
+          EMAIL_SMTP_USER=your-email@gmail.com
+          EMAIL_SMTP_PASS=your-app-password
+          
+          # Analytics (optional)
+          NEXT_PUBLIC_ANALYTICS_ENABLED=false
+          NEXT_PUBLIC_API_URL=https://$DOMAIN/api
+          
+          # Booking System
+          NEXT_PUBLIC_SIRVOY_BOOKING_URL=https://5336c06044bd2.sirvoy.me/en
+          ENVEOF
+          
+          echo "✅ Environment variables configured"
+          echo "   Theme: $THEME"
+          echo "   Email Notifications: $ENABLE_EMAIL"
+          
+          # Pull and restart containers
+          echo "🐳 Pulling latest Docker images and restarting containers..."
+          sudo docker-compose down --remove-orphans || true
+          sudo docker-compose up -d
+          
+          echo "⏳ Waiting for containers to be healthy..."
+          sleep 15
+          
+          # Check container status
+          echo "📋 Container status:"
+          sudo docker-compose ps
+          
+          echo "✅ Deployment complete!"
+          EOF
+          
+          chmod +x deploy.sh
+          ./deploy.sh
+          EOF
+
+          # Copy script to host and run
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy_littlelakehill.sh
+          
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
+            "DEPLOY_PATH='$DEPLOY_PATH' THEME='$THEME' ENABLE_EMAIL='$ENABLE_EMAIL' DB_PASSWORD='$DB_PASSWORD' NEXTAUTH_SECRET='$NEXTAUTH_SECRET' DOMAIN='$DOMAIN' bash ~/deploy_littlelakehill.sh"
+
+      - name: Setup Nginx Configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Create nginx config script
+          cat > setup_nginx.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🔧 Setting up Nginx reverse proxy..."
+          
+          NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
+          NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
+          
+          # Check if certbot certificate exists
+          CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
+          
+          if [ -d "$CERT_PATH" ]; then
+            echo "✅ SSL certificate found"
+            USE_SSL=true
+          else
+            echo "⚠️  No SSL certificate found. Setting up Certbot..."
+            sudo certbot certonly --non-interactive --agree-tos -m admin@dancingsalamanders.com --webroot -w /var/www/html -d $DOMAIN || true
+            USE_SSL=true
+          fi
+          
+          # Create nginx configuration
+          sudo tee "$NGINX_CONFIG" > /dev/null << NGINXEOF
+          server {
+              server_name $DOMAIN;
+          
+              location / {
+                  proxy_pass http://127.0.0.1:$HOST_PORT;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+          
+              listen 443 ssl; # managed by Certbot
+              ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem; # managed by Certbot
+              ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem; # managed by Certbot
+              include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+              ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+          }
+          server {
+              if (\$host = $DOMAIN) {
+                  return 301 https://\$host\$request_uri;
+              } # managed by Certbot
+          
+              listen 80;
+              server_name $DOMAIN;
+              return 404; # managed by Certbot
+          }
+          NGINXEOF
+          
+          # Enable site
+          sudo ln -sf "$NGINX_CONFIG" "$NGINX_ENABLED" 2>/dev/null || true
+          
+          # Test and reload nginx
+          echo "🔄 Testing and reloading Nginx..."
+          sudo nginx -t
+          sudo systemctl reload nginx
+          
+          echo "✅ Nginx configured and reloaded"
+          EOF
+          
+          chmod +x setup_nginx.sh
+          
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no setup_nginx.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup_nginx.sh
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
+            "DOMAIN='$DOMAIN' HOST_PORT='$HOST_PORT' bash ~/setup_nginx.sh"
+
+      - name: Verify Deployment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          echo "🔍 Verifying deployment..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "📋 Docker containers:"
+          sudo docker-compose -f /home/ubuntu/littlelakehill/docker-compose.yml ps
+          
+          echo ""
+          echo "🌐 Nginx configuration:"
+          sudo nginx -T 2>/dev/null | grep -A5 "littlelakehill" || echo "Config loaded"
+          
+          echo ""
+          echo "✅ Deployment verification complete!"
+          EOF
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Details:**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Host:** ${{ env.DEPLOY_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain:** https://${{ env.DOMAIN }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Theme:** ${{ github.event.inputs.theme }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Email Notifications:** ${{ github.event.inputs.enable_email }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment Path:** ${{ env.DEPLOY_PATH }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ref:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
