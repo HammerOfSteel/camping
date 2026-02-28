@@ -49,65 +49,73 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-          # Build deployment script
-          cat > deploy.sh << 'EOF'
+          # Create deployment script with all variables pre-substituted
+          cat > deploy.sh << 'SCRIPT_EOF'
           #!/bin/bash
           set -e
           
+          DEPLOY_PATH="${DEPLOY_PATH}"
+          THEME="${THEME}"
+          ENABLE_EMAIL="${ENABLE_EMAIL}"
+          DB_PASSWORD="${DB_PASSWORD}"
+          NEXTAUTH_SECRET="${NEXTAUTH_SECRET}"
+          DOMAIN="${DOMAIN}"
+          REPO="HammerOfSteel/camping"
+          REPO_BRANCH="main"
+          
           echo "🚀 Deploying Lits Camping to oracle host..."
+          echo "   Domain: $DOMAIN"
+          echo "   Theme: $THEME"
+          echo "   Email Notifications: $ENABLE_EMAIL"
+          echo "   Path: $DEPLOY_PATH"
           
-          # Create or update deployment directory
-          if [ ! -d "$DEPLOY_PATH" ]; then
-            echo "📁 Creating deployment directory..."
-            mkdir -p "$DEPLOY_PATH"
+          # Check if directory exists and has .git
+          if [ -d "$DEPLOY_PATH/.git" ]; then
+            echo "📁 Updating existing repository..."
+            cd "$DEPLOY_PATH"
+            git fetch origin "$REPO_BRANCH"
+            git checkout -f origin/"$REPO_BRANCH"
           else
-            echo "📁 Deployment directory exists, pulling latest code..."
+            echo "📁 Creating new deployment directory..."
+            # Create parent directory if needed
+            mkdir -p "$(dirname "$DEPLOY_PATH")"
+            # Clone the repository
+            git clone --branch "$REPO_BRANCH" --depth 1 https://github.com/"$REPO".git "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
           fi
-          
-          cd "$DEPLOY_PATH"
-          
-          # Initialize git if needed
-          if [ ! -d ".git" ]; then
-            git init
-            git remote add origin https://github.com/${{ github.repository }}.git
-          fi
-          
-          # Fetch and checkout latest code
-          git fetch origin ${{ github.ref_name }}
-          git checkout -f origin/${{ github.ref_name }}
           
           # Create .env file with configuration
-          cat > .env << ENVEOF
-          NODE_ENV=production
-          NEXT_PUBLIC_THEME=$THEME
-          NEXT_PUBLIC_SITE_NAME=Lits Camping
-          NEXT_PUBLIC_SITE_URL=https://$DOMAIN
-          
-          # Database Configuration
-          DB_USER=litscamping
-          DB_PASSWORD=$DB_PASSWORD
-          DB_NAME=lits_camping
-          DATABASE_URL=postgresql://litscamping:$DB_PASSWORD@db:5432/lits_camping
-          
-          # Authentication
-          NEXTAUTH_SECRET=$NEXTAUTH_SECRET
-          NEXTAUTH_URL=https://$DOMAIN
-          ADMIN_PASSWORD=admin123
-          
-          # Email Notifications
-          ENABLE_EMAIL_NOTIFICATIONS=$ENABLE_EMAIL
-          EMAIL_SMTP_HOST=smtp.gmail.com
-          EMAIL_SMTP_PORT=587
-          EMAIL_SMTP_USER=your-email@gmail.com
-          EMAIL_SMTP_PASS=your-app-password
-          
-          # Analytics (optional)
-          NEXT_PUBLIC_ANALYTICS_ENABLED=false
-          NEXT_PUBLIC_API_URL=https://$DOMAIN/api
-          
-          # Booking System
-          NEXT_PUBLIC_SIRVOY_BOOKING_URL=https://5336c06044bd2.sirvoy.me/en
-          ENVEOF
+          cat > .env << 'ENVEOF'
+NODE_ENV=production
+NEXT_PUBLIC_THEME=$THEME
+NEXT_PUBLIC_SITE_NAME=Lits Camping
+NEXT_PUBLIC_SITE_URL=https://$DOMAIN
+
+# Database Configuration
+DB_USER=litscamping
+DB_PASSWORD=$DB_PASSWORD
+DB_NAME=lits_camping
+DATABASE_URL=postgresql://litscamping:$DB_PASSWORD@db:5432/lits_camping
+
+# Authentication
+NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+NEXTAUTH_URL=https://$DOMAIN
+ADMIN_PASSWORD=admin123
+
+# Email Notifications
+ENABLE_EMAIL_NOTIFICATIONS=$ENABLE_EMAIL
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USER=your-email@gmail.com
+EMAIL_SMTP_PASS=your-app-password
+
+# Analytics (optional)
+NEXT_PUBLIC_ANALYTICS_ENABLED=false
+NEXT_PUBLIC_API_URL=https://$DOMAIN/api
+
+# Booking System
+NEXT_PUBLIC_SIRVOY_BOOKING_URL=https://5336c06044bd2.sirvoy.me/en
+ENVEOF
           
           echo "✅ Environment variables configured"
           echo "   Theme: $THEME"
@@ -126,19 +134,25 @@ jobs:
           sudo docker-compose ps
           
           echo "✅ Deployment complete!"
-          EOF
+          SCRIPT_EOF
           
           chmod +x deploy.sh
-          ./deploy.sh
-          EOF
-
-          # Copy script to host and run
+          
+          # Copy script to host and run with proper variable passing
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy_littlelakehill.sh
           
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
-            "DEPLOY_PATH='$DEPLOY_PATH' THEME='$THEME' ENABLE_EMAIL='$ENABLE_EMAIL' DB_PASSWORD='$DB_PASSWORD' NEXTAUTH_SECRET='$NEXTAUTH_SECRET' DOMAIN='$DOMAIN' bash ~/deploy_littlelakehill.sh"
+          # Run the script with environment variables exported
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'REMOTE_EOF'
+          export DEPLOY_PATH="/home/ubuntu/littlelakehill"
+          export THEME="$THEME"
+          export ENABLE_EMAIL="$ENABLE_EMAIL"
+          export DB_PASSWORD="$DB_PASSWORD"
+          export NEXTAUTH_SECRET="$NEXTAUTH_SECRET"
+          export DOMAIN="littlelakehill.dancingsalamanders.com"
+          bash ~/deploy_littlelakehill.sh
+          REMOTE_EOF
 
-      - name: Setup Nginx Configuration
+      - name: Setup Nginx & SSL Certificates
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
@@ -146,74 +160,137 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           
-          # Create nginx config script
-          cat > setup_nginx.sh << 'EOF'
+          # Create nginx and certbot setup script
+          cat > setup_ssl.sh << 'SETUPEOF'
           #!/bin/bash
           set -e
           
-          echo "🔧 Setting up Nginx reverse proxy..."
-          
+          DOMAIN="littlelakehill.dancingsalamanders.com"
+          HOST_PORT="3002"
           NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
           NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
-          
-          # Check if certbot certificate exists
           CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
           
-          if [ -d "$CERT_PATH" ]; then
-            echo "✅ SSL certificate found"
-            USE_SSL=true
+          echo "🔧 Setting up Nginx reverse proxy and SSL..."
+          echo "   Domain: $DOMAIN"
+          echo "   Host Port: $HOST_PORT"
+          
+          # Install certbot if needed
+          if ! command -v certbot &> /dev/null; then
+            echo "📦 Installing certbot..."
+            sudo apt-get update
+            sudo apt-get install -y certbot python3-certbot-nginx
+          fi
+          
+          # Create webroot directory for certbot verification
+          sudo mkdir -p /var/www/certbot
+          
+          # Request/renew SSL certificate with proper setup
+          if [ ! -d "$CERT_PATH" ]; then
+            echo "🔐 Requesting SSL certificate from Let's Encrypt..."
+            sudo certbot certonly \
+              --non-interactive \
+              --agree-tos \
+              -m admin@dancingsalamanders.com \
+              --webroot \
+              -w /var/www/certbot \
+              -d "$DOMAIN" \
+              2>&1 || echo "⚠️  Certbot setup - will retry during nginx reload"
           else
-            echo "⚠️  No SSL certificate found. Setting up Certbot..."
-            sudo certbot certonly --non-interactive --agree-tos -m admin@dancingsalamanders.com --webroot -w /var/www/html -d $DOMAIN || true
-            USE_SSL=true
+            echo "✅ SSL certificate already exists at $CERT_PATH"
+            echo "   Last modified: $(stat -c %y "$CERT_PATH" | cut -d' ' -f1-2)"
           fi
           
           # Create nginx configuration
-          sudo tee "$NGINX_CONFIG" > /dev/null << NGINXEOF
+          echo "📝 Creating nginx configuration..."
+          sudo tee "$NGINX_CONFIG" > /dev/null << 'NGINXEOF'
+          # HTTP - Let's Encrypt verification and redirect
           server {
-              server_name $DOMAIN;
+              listen 80;
+              server_name littlelakehill.dancingsalamanders.com;
           
-              location / {
-                  proxy_pass http://127.0.0.1:$HOST_PORT;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Real-IP \$remote_addr;
-                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
+              # Let's Encrypt webroot
+              location /.well-known/acme-challenge/ {
+                  root /var/www/certbot;
               }
           
-              listen 443 ssl; # managed by Certbot
-              ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem; # managed by Certbot
-              ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem; # managed by Certbot
-              include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-              ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+              # Redirect all other HTTP traffic to HTTPS
+              location / {
+                  return 301 https://$host$request_uri;
+              }
           }
-          server {
-              if (\$host = $DOMAIN) {
-                  return 301 https://\$host\$request_uri;
-              } # managed by Certbot
           
-              listen 80;
-              server_name $DOMAIN;
-              return 404; # managed by Certbot
+          # HTTPS - Reverse proxy to application
+          server {
+              listen 443 ssl http2;
+              server_name littlelakehill.dancingsalamanders.com;
+          
+              # SSL configuration
+              ssl_certificate /etc/letsencrypt/live/littlelakehill.dancingsalamanders.com/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/littlelakehill.dancingsalamanders.com/privkey.pem;
+              ssl_session_timeout 1d;
+              ssl_session_cache shared:SSL:50m;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+              ssl_prefer_server_ciphers on;
+          
+              # HSTS header
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+          
+              # Reverse proxy to Docker container
+              location / {
+                  proxy_pass http://127.0.0.1:3002;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header X-Forwarded-Host $server_name;
+                  
+                  # WebSocket support
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  
+                  # Timeouts
+                  proxy_connect_timeout 60s;
+                  proxy_send_timeout 60s;
+                  proxy_read_timeout 60s;
+              }
           }
           NGINXEOF
           
-          # Enable site
-          sudo ln -sf "$NGINX_CONFIG" "$NGINX_ENABLED" 2>/dev/null || true
+          # Enable nginx site
+          echo "🔗 Enabling nginx site..."
+          sudo ln -sf "$NGINX_CONFIG" "$NGINX_ENABLED"
           
-          # Test and reload nginx
-          echo "🔄 Testing and reloading Nginx..."
-          sudo nginx -t
+          # Test nginx configuration
+          echo "🧪 Testing nginx configuration..."
+          if ! sudo nginx -t 2>&1 | grep "successful"; then
+            echo "❌ Nginx configuration test failed!"
+            sudo nginx -T
+            exit 1
+          fi
+          
+          # Reload nginx
+          echo "🔄 Reloading nginx..."
           sudo systemctl reload nginx
           
-          echo "✅ Nginx configured and reloaded"
-          EOF
+          # Verify setup
+          echo "✅ SSL and Nginx setup complete!"
+          echo "   Config: $NGINX_CONFIG"
+          echo "   Enabled: $NGINX_ENABLED"
+          if [ -d "$CERT_PATH" ]; then
+            echo "   Certificate: $CERT_PATH (valid)"
+          else
+            echo "   ⚠️  Certificate not yet issued - may need manual certbot setup"
+          fi
+          SETUPEOF
           
-          chmod +x setup_nginx.sh
+          chmod +x setup_ssl.sh
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no setup_ssl.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup_ssl.sh
           
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no setup_nginx.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup_nginx.sh
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
-            "DOMAIN='$DOMAIN' HOST_PORT='$HOST_PORT' bash ~/setup_nginx.sh"
+            "bash ~/setup_ssl.sh"
 
       - name: Verify Deployment
         env:
