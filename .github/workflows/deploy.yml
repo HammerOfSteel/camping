@@ -48,10 +48,16 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
           
+          # Verify SSH key works
+          echo "Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "echo 'SSH connection successful'"
+          
           # Copy deploy script to remote and execute
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/scripts/deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy.sh
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
-            bash ~/deploy.sh "$THEME" "$ENABLE_EMAIL" "$DB_PASSWORD" "$NEXTAUTH_SECRET"
+          echo "Copying deploy script..."
+          scp -v -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/scripts/deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy.sh
+          
+          echo "Executing deploy script..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} "bash ~/deploy.sh '$THEME' '$ENABLE_EMAIL' '$DB_PASSWORD' '$NEXTAUTH_SECRET'"
 
       - name: Setup Nginx & SSL Certificates
         env:
