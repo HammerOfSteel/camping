@@ -26,15 +26,17 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Install all dependencies (including dev for next dev command)
+# Copy package files
 COPY package*.json ./
 
+# Install all dependencies (including dev for next dev command)
 RUN npm ci
 
-# Copy built application from builder
+# Copy all source files and configs needed for dev mode
+COPY . .
+
+# Copy built application from builder (overwrite .next)
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
 
 # Expose port
 EXPOSE 3000
