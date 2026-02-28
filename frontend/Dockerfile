@@ -15,6 +15,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Generate Prisma client
+RUN npx prisma generate
+
 # Build the application
 RUN npm run build
 
@@ -29,20 +32,20 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev for next dev command)
-RUN npm ci
+# Install production dependencies only
+RUN npm ci --omit=dev
 
-# Copy all source files and configs needed for dev mode
-COPY . .
-
-# Copy built application from builder (overwrite .next)
+# Copy necessary files from builder
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
 
 # Expose port
 EXPOSE 3000
 
-# Set environment to development for next dev
-ENV NODE_ENV=development
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Generate Prisma client, seed database, and start dev server
-CMD sh -c "npx prisma generate && node prisma/seed.js && npm run dev"
+# Generate Prisma client and start production server
+CMD sh -c "npx prisma generate && npm start"
