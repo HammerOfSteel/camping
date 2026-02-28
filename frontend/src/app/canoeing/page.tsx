@@ -3,9 +3,26 @@
 import { getActiveTheme } from '@/styles/themes'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useState } from 'react'
 
 export default function CanoeingPage() {
   const theme = getActiveTheme()
+  
+  // Gallery images
+  const galleryImages = Array.from({ length: 30 }, (_, i) => `/images/canoe-gallery/canoe-gallery-${i + 1}.jpg`)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length)
+  }
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)
+  }
+
+  const goToImage = (index: number) => {
+    setCurrentImageIndex(index)
+  }
 
   const trips = [
     {
@@ -85,44 +102,72 @@ export default function CanoeingPage() {
         </div>
       </section>
 
-      {/* Photo Gallery */}
+      {/* Interactive Photo Gallery */}
       <section className="py-16 px-4 bg-gray-100">
         <div className="container mx-auto max-w-6xl">
           <h2 className="text-3xl font-bold text-center mb-12" style={{ color: theme.colors.primary.forestGreen }}>
-            Paddling Adventures
+            Gallery: Paddling Adventures
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+          
+          {/* Main Image Display */}
+          <div className="mb-8">
+            <div className="relative h-96 md:h-[500px] rounded-lg overflow-hidden shadow-xl">
               <Image
-                src="/images/canoe-1.jpg"
-                alt="Canoe paddling on pristine Swedish river"
+                src={galleryImages[currentImageIndex]}
+                alt={`Canoe gallery image ${currentImageIndex + 1}`}
                 fill
-                className="object-cover hover:scale-105 transition-transform duration-300"
+                className="object-cover transition-all duration-300"
+                priority
               />
+              
+              {/* Navigation Arrows */}
+              <button
+                onClick={prevImage}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all z-10"
+                aria-label="Previous image"
+              >
+                ←
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all z-10"
+                aria-label="Next image"
+              >
+                →
+              </button>
+              
+              {/* Image Counter */}
+              <div className="absolute bottom-4 right-4 bg-black/60 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                {currentImageIndex + 1} / {galleryImages.length}
+              </div>
             </div>
-            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <Image
-                src="/images/canoe-2.jpg"
-                alt="Sunset paddling adventure"
-                fill
-                className="object-cover hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <Image
-                src="/images/canoe-3.jpg"
-                alt="Multi-day canoe expedition camp"
-                fill
-                className="object-cover hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <Image
-                src="/images/canoe-4.jpg"
-                alt="Group paddling through scenic waterway"
-                fill
-                className="object-cover hover:scale-105 transition-transform duration-300"
-              />
+          </div>
+          
+          {/* Thumbnail Grid */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <p className="text-sm text-gray-600 mb-4 font-semibold">Click to view:</p>
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {galleryImages.map((image, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => goToImage(idx)}
+                  className={`relative h-20 rounded overflow-hidden transition-all ${
+                    idx === currentImageIndex
+                      ? 'ring-2 ring-offset-2'
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                  style={{
+                    ringColor: idx === currentImageIndex ? theme.colors.accent.sunriseOrange : 'transparent'
+                  }}
+                >
+                  <Image
+                    src={image}
+                    alt={`Thumbnail ${idx + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </button>
+              ))}
             </div>
           </div>
         </div>
