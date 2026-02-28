@@ -48,4 +48,4 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 # Generate Prisma client and start production server
-CMD sh -c "npx prisma generate && npm start"
+CMD sh -c "npx prisma generate && npx prisma migrate deploy && npm start"
