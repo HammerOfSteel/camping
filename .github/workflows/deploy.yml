@@ -47,66 +47,9 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          # Create local deploy script first
-          cat > /tmp/deploy.sh << 'SCRIPTEND'
-          #!/bin/bash
-          set -e
-          DEPLOY_PATH="/home/ubuntu/littlelakehill"
-          THEME="$1"
-          ENABLE_EMAIL="$2"
-          DB_PASSWORD="$3"
-          NEXTAUTH_SECRET="$4"
-          DOMAIN="littlelakehill.dancingsalamanders.com"
           
-          echo "🚀 Deploying Lits Camping..."
-          echo "   Path: $DEPLOY_PATH"
-          echo "   Theme: $THEME"
-          
-          if [ -d "$DEPLOY_PATH/.git" ]; then
-            echo "📁 Updating existing repository..."
-            cd "$DEPLOY_PATH"
-            git fetch origin main && git checkout -f origin/main
-          else
-            echo "📁 Creating new deployment..."
-            mkdir -p "$(dirname "$DEPLOY_PATH")"
-            git clone --branch main --depth 1 https://github.com/HammerOfSteel/camping.git "$DEPLOY_PATH"
-            cd "$DEPLOY_PATH"
-          fi
-          
-          cat > .env << ENVEND
-NODE_ENV=production
-NEXT_PUBLIC_THEME=${THEME}
-NEXT_PUBLIC_SITE_NAME=Lits Camping
-NEXT_PUBLIC_SITE_URL=https://${DOMAIN}
-DB_USER=litscamping
-DB_PASSWORD=${DB_PASSWORD}
-DB_NAME=lits_camping
-DATABASE_URL=postgresql://litscamping:${DB_PASSWORD}@db:5432/lits_camping
-NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-NEXTAUTH_URL=https://${DOMAIN}
-ADMIN_PASSWORD=admin123
-ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL}
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USER=your-email@gmail.com
-EMAIL_SMTP_PASS=your-app-password
-NEXT_PUBLIC_ANALYTICS_ENABLED=false
-NEXT_PUBLIC_API_URL=https://${DOMAIN}/api
-NEXT_PUBLIC_SIRVOY_BOOKING_URL=https://5336c06044bd2.sirvoy.me/en
-ENVEND
-          
-          echo "✅ Environment configured"
-          echo "🐳 Restarting containers..."
-          sudo docker-compose down --remove-orphans || true
-          sudo docker-compose up -d
-          sleep 15
-          echo "📋 Status:"
-          sudo docker-compose ps
-          SCRIPTEND
-          
-          chmod +x /tmp/deploy.sh
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no /tmp/deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy.sh
+          # Copy deploy script to remote and execute
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/scripts/deploy.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/deploy.sh
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
             bash ~/deploy.sh "$THEME" "$ENABLE_EMAIL" "$DB_PASSWORD" "$NEXTAUTH_SECRET"
 
@@ -117,85 +60,8 @@ ENVEND
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
-          # Create local SSL setup script
-          cat > /tmp/setup_ssl.sh << 'SSLSCRIPT'
-          #!/bin/bash
-          set -e
-          
-          DOMAIN="littlelakehill.dancingsalamanders.com"
-          CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
-          CERT_FILE="$CERT_PATH/fullchain.pem"
-          NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
-          NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
-          
-          echo "🔧 Setting up Nginx and SSL..."
-          
-          if ! command -v certbot &> /dev/null; then
-            echo "📦 Installing certbot..."
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq certbot >/dev/null 2>&1
-          fi
-          
-          sudo mkdir -p /var/www/certbot
-          
-          # Check if cert needs renewal
-          REQUEST_CERT=false
-          if [ ! -f "$CERT_FILE" ]; then
-            REQUEST_CERT=true
-          else
-            EXPIRY=$(sudo openssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
-            DAYS_LEFT=$(( ($(date -d "$EXPIRY" +%s 2>/dev/null || echo $(date +%s)) - $(date +%s)) / 86400 ))
-            if [ "$DAYS_LEFT" -lt 30 ]; then
-              REQUEST_CERT=true
-            fi
-          fi
-          
-          if [ "$REQUEST_CERT" = true ]; then
-            echo "🔐 Setting up certificate..."
-            sudo certbot certonly --non-interactive --agree-tos -m admin@dancingsalamanders.com \
-              --webroot -w /var/www/certbot -d "$DOMAIN" 2>/dev/null || echo "⚠️  Certbot in progress"
-          fi
-          
-          # Create nginx config
-          sudo tee "$NGINX_CONFIG" > /dev/null << NGINXCFG
-server {
-    listen 80;
-    server_name $DOMAIN;
-    location /.well-known/acme-challenge/ { root /var/www/certbot; }
-    location / { return 301 https://\$host\$request_uri; }
-}
-
-server {
-    listen 443 ssl http2;
-    server_name $DOMAIN;
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-    
-    location / {
-        proxy_pass http://127.0.0.1:3002;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-NGINXCFG
-          
-          sudo ln -sf "$NGINX_CONFIG" "$NGINX_ENABLED" 2>/dev/null || true
-          sudo nginx -t > /dev/null 2>&1 && sudo systemctl reload nginx || true
-          echo "✅ Nginx and SSL configured"
-          SSLSCRIPT
-          
-          chmod +x /tmp/setup_ssl.sh
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no /tmp/setup_ssl.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup_ssl.sh
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} bash ~/setup_ssl.sh
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/scripts/setup-ssl.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/setup-ssl.sh
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} bash ~/setup-ssl.sh
 
       - name: Verify Deployment
         env:
@@ -204,24 +70,7 @@ NGINXCFG
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
-          cat > /tmp/verify.sh << 'VERIFYSCRIPT'
-          #!/bin/bash
-          echo "🔍 Deployment Verification"
-          echo ""
-          echo "📋 Docker containers:"
-          sudo docker-compose -f /home/ubuntu/littlelakehill/docker-compose.yml ps 2>/dev/null || echo "   (containers starting)"
-          echo ""
-          echo "🌐 Site URLs:"
-          echo "   HTTP: http://129.151.193.219:3002"
-          echo "   HTTPS: https://littlelakehill.dancingsalamanders.com"
-          echo ""
-          echo "✅ Verification complete!"
-          VERIFYSCRIPT
-          
-          chmod +x /tmp/verify.sh
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no /tmp/verify.sh ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:~/verify.sh
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} bash ~/verify.sh
+          echo "Verification complete!"
 
       - name: Deployment Summary
         run: |
