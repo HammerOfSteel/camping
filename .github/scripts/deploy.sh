@@ -48,7 +48,7 @@ sed -i "s/DB_PASSWORD_PLACEHOLDER/$DB_PASSWORD/g" .env
 sed -i "s/NEXTAUTH_SECRET_PLACEHOLDER/$NEXTAUTH_SECRET/g" .env
 sed -i "s/ENABLE_EMAIL_PLACEHOLDER/$ENABLE_EMAIL/g" .env
 
-sudo docker-compose down --remove-orphans || true
-sudo docker-compose up -d
+sudo docker compose down --remove-orphans || true
+sudo docker compose up -d
 sleep 15
 echo "Done"
