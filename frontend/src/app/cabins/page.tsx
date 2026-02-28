@@ -2,6 +2,7 @@
 
 import { getActiveTheme } from '@/styles/themes'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function CabinsPage() {
   const theme = getActiveTheme()
@@ -62,11 +63,32 @@ export default function CabinsPage() {
                 className="rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
                 style={{ borderTop: `4px solid ${theme.colors.accent.sunriseOrange}` }}
               >
-                <div
-                  className="text-6xl py-8 text-center"
-                  style={{ backgroundColor: theme.colors.primary.cream }}
-                >
-                  {cabin.image}
+                {/* Image Gallery for cabin type */}
+                <div className="relative h-64 bg-gray-200 overflow-hidden">
+                  {idx === 0 && (
+                    <Image
+                      src="https://images.staticjw.com/lit/4205/imgp7061.jpg"
+                      alt="35kvm self-catering cabin"
+                      fill
+                      className="object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  )}
+                  {idx === 1 && (
+                    <Image
+                      src="https://images.staticjw.com/lit/5410/img_20190819_132722.jpg"
+                      alt="16kvm timber cabin"
+                      fill
+                      className="object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  )}
+                  {idx === 2 && (
+                    <Image
+                      src="https://images.staticjw.com/lit/3042/d5855256-1c9d-4484-9827-51d491297dacjfif.jpg"
+                      alt="8kvm camping cabin"
+                      fill
+                      className="object-cover hover:scale-105 transition-transform duration-300"
+                    />
+                  )}
                 </div>
                 <div className="p-6">
                   <h3 className="text-2xl font-bold mb-2" style={{ color: theme.colors.primary.forestGreen }}>

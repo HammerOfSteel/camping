@@ -2,6 +2,7 @@
 
 import { getActiveTheme } from '@/styles/themes'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function CanoeingPage() {
   const theme = getActiveTheme()
@@ -80,6 +81,49 @@ export default function CanoeingPage() {
                 {feature}
               </span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Photo Gallery */}
+      <section className="py-16 px-4 bg-gray-100">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-3xl font-bold text-center mb-12" style={{ color: theme.colors.primary.forestGreen }}>
+            Paddling Adventures
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+              <Image
+                src="https://images.staticjw.com/lit/6891/20240614_101857.jpg"
+                alt="Canoe paddling on pristine Swedish river"
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+              <Image
+                src="https://images.staticjw.com/lit/3571/img_0048.jpg"
+                alt="Sunset paddling adventure"
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+              <Image
+                src="https://images.staticjw.com/lit/4572/kanot.jpg"
+                alt="Multi-day canoe expedition camp"
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+              <Image
+                src="https://images.staticjw.com/lit/5821/paddling.jpg"
+                alt="Group paddling through scenic waterway"
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-300"
+              />
+            </div>
           </div>
         </div>
       </section>

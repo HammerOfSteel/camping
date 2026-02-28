@@ -2,6 +2,7 @@
 
 import { getActiveTheme } from '@/styles/themes'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function CampingPage() {
   const theme = getActiveTheme()
@@ -49,6 +50,32 @@ export default function CampingPage() {
         <div className="container mx-auto max-w-6xl text-center">
           <h1 className="text-5xl md:text-6xl font-bold mb-4">Riverside Camping</h1>
           <p className="text-xl opacity-90">Perfect for tents, RVs, and caravans with family-friendly facilities</p>
+        </div>
+      </section>
+
+      {/* Photo Gallery */}
+      <section className="py-12 px-4 bg-gray-50">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="text-3xl font-bold text-center mb-8" style={{ color: theme.colors.primary.forestGreen }}>
+            See Our Campground
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              'https://images.staticjw.com/lit/2598/127356bb-b1d9-40de-9eb9-9857a3afac1bjfif.jpg',
+              'https://images.staticjw.com/lit/2553/aebd317f-edae-416b-99ed-77cebf664cc5jfif.jpg',
+              'https://images.staticjw.com/lit/3976/8d2065e5-e951-489a-abd8-6f1767a65569jfif.jpg',
+              'https://images.staticjw.com/lit/3042/d5855256-1c9d-4484-9827-51d491297dacjfif.jpg'
+            ].map((src, idx) => (
+              <div key={idx} className="relative h-64 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                <Image
+                  src={src}
+                  alt={`Camping area ${idx + 1}`}
+                  fill
+                  className="object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
