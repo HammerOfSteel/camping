@@ -9,28 +9,30 @@ export default function CabinsPage() {
 
   const cabins = [
     {
-      name: '4-Bed Self-Catering Cottage',
-      beds: '4-5 beds',
-      size: '35 sqm',
-      image: '🏡',
-      price: 'From 800 SEK/night',
-      amenities: ['Full Kitchen', 'TV + DVD', 'Terrace', 'Parking'],
-      description: '2 bedrooms with comfortable beds and a pull-out sofa. Perfect for families.'
-    },
-    {
       name: '6-Bed Self-Catering Cottage',
       beds: '6 beds',
       size: '35 sqm',
-      image: '🏠',
+      image: '/images/cabins/cottage-6bed-1.jpg',
+      image2: '/images/cabins/cottage-6bed-2.jpg',
       price: 'From 1000 SEK/night',
       amenities: ['Full Kitchen', 'Larger Layout', 'Terrace', 'Parking'],
       description: '3 bedrooms designed for larger groups or extended families.'
     },
     {
+      name: '4-Bed Self-Catering Cottage',
+      beds: '4-5 beds',
+      size: '35 sqm',
+      image: '/images/cabins/cottage-4bed-1.jpg',
+      image2: '/images/cabins/cottage-4bed-2.jpg',
+      price: 'From 800 SEK/night',
+      amenities: ['Full Kitchen', 'TV + DVD', 'Terrace', 'Parking'],
+      description: '2 bedrooms with comfortable beds and a pull-out sofa. Perfect for families.'
+    },
+    {
       name: 'Comfort Cabin',
       beds: '2-3 beds',
       size: '20 sqm',
-      image: '🏘️',
+      image: '/images/cabins/cottage-4bed-2.jpg',
       price: 'From 600 SEK/night',
       amenities: ['Kitchenette', 'Heating', 'Shower', 'Peaceful'],
       description: 'Cozy, intimate accommodation perfect for couples or solo travelers.'
@@ -65,30 +67,12 @@ export default function CabinsPage() {
               >
                 {/* Image Gallery for cabin type */}
                 <div className="relative h-64 bg-gray-200 overflow-hidden">
-                  {idx === 0 && (
-                    <Image
-                      src="https://images.staticjw.com/lit/4205/imgp7061.jpg"
-                      alt="35kvm self-catering cabin"
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  )}
-                  {idx === 1 && (
-                    <Image
-                      src="https://images.staticjw.com/lit/5410/img_20190819_132722.jpg"
-                      alt="16kvm timber cabin"
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  )}
-                  {idx === 2 && (
-                    <Image
-                      src="https://images.staticjw.com/lit/3042/d5855256-1c9d-4484-9827-51d491297dacjfif.jpg"
-                      alt="8kvm camping cabin"
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  )}
+                  <Image
+                    src={cabin.image}
+                    alt={cabin.name}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
                 <div className="p-6">
                   <h3 className="text-2xl font-bold mb-2" style={{ color: theme.colors.primary.forestGreen }}>

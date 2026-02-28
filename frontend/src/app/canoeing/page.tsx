@@ -94,7 +94,7 @@ export default function CanoeingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <Image
-                src="https://images.staticjw.com/lit/6891/20240614_101857.jpg"
+                src="/images/canoeing/canoe-1.jpg"
                 alt="Canoe paddling on pristine Swedish river"
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-300"
@@ -102,7 +102,7 @@ export default function CanoeingPage() {
             </div>
             <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <Image
-                src="https://images.staticjw.com/lit/3571/img_0048.jpg"
+                src="/images/canoeing/canoe-2.jpg"
                 alt="Sunset paddling adventure"
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-300"
@@ -110,7 +110,7 @@ export default function CanoeingPage() {
             </div>
             <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <Image
-                src="https://images.staticjw.com/lit/4572/kanot.jpg"
+                src="/images/canoeing/canoe-1.jpg"
                 alt="Multi-day canoe expedition camp"
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-300"
@@ -118,7 +118,7 @@ export default function CanoeingPage() {
             </div>
             <div className="relative h-64 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <Image
-                src="https://images.staticjw.com/lit/5821/paddling.jpg"
+                src="/images/canoeing/canoe-2.jpg"
                 alt="Group paddling through scenic waterway"
                 fill
                 className="object-cover hover:scale-105 transition-transform duration-300"

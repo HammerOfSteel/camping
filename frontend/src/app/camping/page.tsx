@@ -61,10 +61,10 @@ export default function CampingPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              'https://images.staticjw.com/lit/2598/127356bb-b1d9-40de-9eb9-9857a3afac1bjfif.jpg',
-              'https://images.staticjw.com/lit/2553/aebd317f-edae-416b-99ed-77cebf664cc5jfif.jpg',
-              'https://images.staticjw.com/lit/3976/8d2065e5-e951-489a-abd8-6f1767a65569jfif.jpg',
-              'https://images.staticjw.com/lit/3042/d5855256-1c9d-4484-9827-51d491297dacjfif.jpg'
+              '/images/camping/camping-aerial.jpg',
+              '/images/camping/rv-site.jpg',
+              '/images/camping/camping-aerial.jpg',
+              '/images/camping/rv-site.jpg'
             ].map((src, idx) => (
               <div key={idx} className="relative h-64 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <Image
