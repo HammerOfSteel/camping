@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Root color variables for dynamic theming */
+:root {
+  /* Light theme - default */
+  --color-bg-primary: theme('colors.white');
+  --color-bg-secondary: theme('colors.gray.50');
+  --color-text-primary: theme('colors.gray.900');
+  --color-text-secondary: theme('colors.gray.600');
+  --color-accent: theme('colors.orange.600');
+  --color-border: theme('colors.gray.200');
+}
+
+/* Smooth scrolling for entire document */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Base typography */
+body {
+  @apply bg-white text-gray-900 tracking-normal;
+  font-feature-settings: 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-heading font-bold leading-tight;
+}
+
+h1 {
+  @apply text-5xl md:text-6xl;
+}
+
+h2 {
+  @apply text-4xl md:text-5xl;
+}
+
+h3 {
+  @apply text-3xl md:text-4xl;
+}
+
+h4 {
+  @apply text-2xl md:text-3xl;
+}
+
+h5 {
+  @apply text-xl md:text-2xl;
+}
+
+h6 {
+  @apply text-lg md:text-xl;
+}
+
+/* Links */
+a {
+  @apply transition-colors duration-200;
+  
+  &:focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500;
+  }
+}
+
+/* Images */
+img {
+  @apply max-w-full h-auto;
+}
+
+/* Code blocks */
+code {
+  @apply bg-gray-100 rounded px-2 py-1 text-sm font-mono;
+}
+
+pre {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto;
+  
+  code {
+    @apply bg-transparent text-gray-100 p-0;
+  }
+}
+
+/* Selection */
+::selection {
+  @apply bg-blue-500 text-white;
+}
+
+/* Focus visible for better accessibility */
+*:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-500;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded;
+  
+  &:hover {
+    @apply bg-gray-500;
+  }
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-color: #9ca3af #f3f4f6;
+  scrollbar-width: thin;
+}
+
+/* Utility classes */
+.text-gradient {
+  background: linear-gradient(135deg, currentColor 0%, currentColor 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shadow-glow {
+  @apply shadow-lg;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+/* Animation stagger */
+.stagger > * {
+  @apply animate-fade-in;
+  animation-fill-mode: both;
+}
+
+.stagger > *:nth-child(1) { animation-delay: 0.1s; }
+.stagger > *:nth-child(2) { animation-delay: 0.2s; }
+.stagger > *:nth-child(3) { animation-delay: 0.3s; }
+.stagger > *:nth-child(4) { animation-delay: 0.4s; }
+.stagger > *:nth-child(5) { animation-delay: 0.5s; }

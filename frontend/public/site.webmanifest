@@ -1,0 +1,19 @@
+{
+  "name": "Lits Camping",
+  "short_name": "Lits",
+  "description": "Peaceful camping, cabins, and canoe center in beautiful Jämtland, Sweden",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2D5016",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "screenshots": []
+}

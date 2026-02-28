@@ -1,0 +1,85 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User for admin authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed
+  name      String
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum BookingType {
+  CABIN
+  CAMPING
+  CANOE
+}
+
+// Booking model
+model Booking {
+  id              String         @id @default(cuid())
+  
+  // Customer Information
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  
+  // Booking Details
+  bookingType     BookingType
+  startDate       DateTime
+  endDate         DateTime
+  totalPrice      Float
+  specialRequests String?
+  
+  // Status
+  status          BookingStatus  @default(PENDING)
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  items           BookingItem[]
+  
+  @@index([status])
+  @@index([bookingType])
+}
+
+// Booking items for detailed line items
+model BookingItem {
+  id           String  @id @default(cuid())
+  bookingId    String
+  booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  itemType     String  // "cabin", "campsite", "canoe", "equipment", etc.
+  itemName     String  // Description of the item
+  quantity     Int
+  pricePerUnit Float
+  totalPrice   Float
+  
+  @@index([bookingId])
+}

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lits_camping_db
+    environment:
+      - POSTGRES_USER=${DB_USER:-litscamping}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-dev_password}
+      - POSTGRES_DB=${DB_NAME:-lits_camping}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lits_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-litscamping}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lits_camping_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - NEXT_PUBLIC_THEME=${NEXT_PUBLIC_THEME:-nordic-standard}
+      - NEXT_PUBLIC_SITE_NAME=Lits Camping
+      - DATABASE_URL=postgresql://${DB_USER:-litscamping}:${DB_PASSWORD:-dev_password}@db:5432/${DB_NAME:-lits_camping}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-secret-key-change-in-production}
+      - NEXTAUTH_URL=http://localhost:3000
+      - ENABLE_EMAIL_NOTIFICATIONS=${ENABLE_EMAIL_NOTIFICATIONS:-false}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER}
+      - EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    networks:
+      - lits_network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  lits_network:
+
+volumes:
+  postgres_data:
