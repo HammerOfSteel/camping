@@ -61,10 +61,10 @@ export default function CampingPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              '/images/camping/camping-aerial.jpg',
-              '/images/camping/rv-site.jpg',
-              '/images/camping/camping-aerial.jpg',
-              '/images/camping/rv-site.jpg'
+              '/images/camping-1.jpg',
+              '/images/camping-2.jpg',
+              '/images/camping-3.jpg',
+              '/images/camping-4.jpg'
             ].map((src, idx) => (
               <div key={idx} className="relative h-64 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                 <Image

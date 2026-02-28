@@ -12,8 +12,8 @@ export default function CabinsPage() {
       name: '6-Bed Self-Catering Cottage',
       beds: '6 beds',
       size: '35 sqm',
-      image: '/images/cabins/cottage-6bed-1.jpg',
-      image2: '/images/cabins/cottage-6bed-2.jpg',
+      image: '/images/cabin-35kvm.jpg',
+      image2: '/images/cabin-35kvm.jpg',
       price: 'From 1000 SEK/night',
       amenities: ['Full Kitchen', 'Larger Layout', 'Terrace', 'Parking'],
       description: '3 bedrooms designed for larger groups or extended families.'
@@ -22,8 +22,8 @@ export default function CabinsPage() {
       name: '4-Bed Self-Catering Cottage',
       beds: '4-5 beds',
       size: '35 sqm',
-      image: '/images/cabins/cottage-4bed-1.jpg',
-      image2: '/images/cabins/cottage-4bed-2.jpg',
+      image: '/images/cabin-16kvm.jpg',
+      image2: '/images/cabin-16kvm.jpg',
       price: 'From 800 SEK/night',
       amenities: ['Full Kitchen', 'TV + DVD', 'Terrace', 'Parking'],
       description: '2 bedrooms with comfortable beds and a pull-out sofa. Perfect for families.'
@@ -32,7 +32,7 @@ export default function CabinsPage() {
       name: 'Comfort Cabin',
       beds: '2-3 beds',
       size: '20 sqm',
-      image: '/images/cabins/cottage-4bed-2.jpg',
+      image: '/images/cabin-8kvm.jpg',
       price: 'From 600 SEK/night',
       amenities: ['Kitchenette', 'Heating', 'Shower', 'Peaceful'],
       description: 'Cozy, intimate accommodation perfect for couples or solo travelers.'
